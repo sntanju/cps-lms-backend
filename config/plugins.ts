@@ -27,7 +27,13 @@ const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin =>
     config: {
       jwtManagement: 'refresh',
       sessions: {
-        httpOnly: true,
+        // The refresh token is returned in the login response body instead of
+        // an httpOnly cookie. The frontend (Vercel) and this API (Railway) are
+        // on different sites, so a cookie here would be a third-party cookie —
+        // blocked by default in Safari, which would silently log users out.
+        // Trade-off: the refresh token is readable by JavaScript, so never
+        // render user-authored content as raw HTML.
+        httpOnly: false,
       },
     },
   },
