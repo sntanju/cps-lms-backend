@@ -1,0 +1,32 @@
+{
+  "kind": "collectionType",
+  "collectionName": "refresh_tokens",
+  "info": {
+    "singularName": "refresh-token",
+    "pluralName": "refresh-tokens",
+    "displayName": "Refresh Token"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "tokenHash": {
+      "type": "string",
+      "required": true
+    },
+    "expiresAt": {
+      "type": "datetime",
+      "required": true
+    },
+    "revokedAt": {
+      "type": "datetime"
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "refresh_tokens"
+    }
+  }
+}
