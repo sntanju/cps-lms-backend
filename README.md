@@ -32,13 +32,55 @@ npm run build
 yarn build
 ```
 
+## 🗄️ Database
+
+Postgres, configured entirely through environment variables in `config/database.ts`.
+
+For local development, point the discrete variables at a local Postgres instance
+(see `.env.example`):
+
+```
+DATABASE_CLIENT=postgres
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=cps_lms_database
+DATABASE_USERNAME=...
+DATABASE_PASSWORD=...
+```
+
+Strapi creates and syncs the tables from the content-type schemas on first boot,
+so there is no migration step to run.
+
 ## ⚙️ Deployment
 
-Strapi gives you many possible deployment options for your project including [Strapi Cloud](https://cloud.strapi.io). Browse the [deployment section of the documentation](https://docs.strapi.io/dev-docs/deployment) to find the best solution for your use case.
+The backend deploys to **Railway**, with Postgres hosted on **Neon**. Set these
+variables on the Railway service:
 
-```
-yarn strapi deploy
-```
+| Variable | Value |
+| --- | --- |
+| `DATABASE_CLIENT` | `postgres` |
+| `DATABASE_URL` | the Neon connection string |
+| `FRONTEND_URLS` | the Vercel URLs, comma-separated |
+| `APP_KEYS`, `API_TOKEN_SALT`, `ADMIN_JWT_SECRET`, `TRANSFER_TOKEN_SALT`, `JWT_SECRET`, `ENCRYPTION_KEY` | freshly generated secrets |
+| `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`, `INITIAL_ADMIN_NAME` | the first admin account |
+
+Notes:
+
+- **`DATABASE_URL` wins.** When it is set, the URL it parses to overrides
+  `DATABASE_HOST`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` and
+  `DATABASE_SSL`. Leave those unset in production so there is one source of truth.
+- **Use Neon's direct endpoint**, not the one with `-pooler` in the host. Strapi is
+  a long-running server with its own connection pool, so it does not need
+  PgBouncer, and transaction-mode pooling can break session state.
+- **Keep `?sslmode=require`** in the URL. Neon requires TLS, and its certificates
+  chain to a publicly trusted CA, so verification succeeds with no extra config.
+- **The `INITIAL_ADMIN_*` variables are mandatory.** `bootstrap()` seeds the four
+  LMS roles and the first admin user on every boot, and throws if they are
+  missing — which stops Strapi from starting at all, leaving no admin panel in
+  which to fix it.
+
+A fresh Neon database is empty; the first successful boot creates the tables,
+seeds the roles and creates the admin user.
 
 ## 📚 Learn more
 
