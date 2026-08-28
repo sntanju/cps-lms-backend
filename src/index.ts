@@ -41,6 +41,25 @@ const SHARED_PERMISSIONS = [
 // The catalogue is not public — the Public role is granted nothing here.
 const COURSE_READ = ['api::course.course.find', 'api::course.course.findOne'];
 
+// Writing courses. Granting this to Instructor does NOT mean "any course" — the
+// is-course-owner policy on the update and delete routes narrows it to their
+// own, which is the part this grid cannot express.
+const COURSE_WRITE = [
+  'api::course.course.create',
+  'api::course.course.update',
+  'api::course.course.delete',
+];
+
+// The instructor picker on the course form. Only the roles that may assign a
+// course to somebody else have any use for a list of who that could be.
+const COURSE_ASSIGN = ['api::course.course.assignableInstructors'];
+
+// The authoring list — "the courses I may manage". Scoped on the server, so a
+// student holding this permission would still see nothing; they simply have no
+// courses. Granted to the three authoring roles only, since the page it feeds
+// is behind the same guard.
+const COURSE_MANAGE_LIST = ['api::course.course.managed'];
+
 // Feature permissions, per role. A map rather than one shared list, because from
 // here the roles diverge: reading a course is for everyone, writing one is not.
 //
@@ -50,9 +69,16 @@ const COURSE_READ = ['api::course.course.find', 'api::course.course.findOne'];
 // would let any instructor edit every course on the platform — so ownership is
 // checked in a route policy instead, added with the feature that needs it.
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  Admin: [...COURSE_READ],
-  'Content Manager': [...COURSE_READ],
-  Instructor: [...COURSE_READ],
+  Admin: [...COURSE_READ, ...COURSE_WRITE, ...COURSE_ASSIGN, ...COURSE_MANAGE_LIST],
+  'Content Manager': [
+    ...COURSE_READ,
+    ...COURSE_WRITE,
+    ...COURSE_ASSIGN,
+    ...COURSE_MANAGE_LIST,
+  ],
+  Instructor: [...COURSE_READ, ...COURSE_WRITE, ...COURSE_MANAGE_LIST],
+  // A student browses the catalogue and nothing more. The permission matrix
+  // gives them no course-write action at all.
   Student: [...COURSE_READ],
 };
 
