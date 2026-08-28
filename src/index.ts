@@ -30,13 +30,31 @@ const LMS_ROLES = [
 // a fresh database has none of them and the four LMS roles start with zero
 // permissions. Without seeding, a user logs in successfully and then gets 403
 // on /api/users/me, because they hold an LMS role rather than 'Authenticated'.
-// Feature permissions are deliberately not listed here: the spec's "own only"
-// rules cannot be expressed in this grid and belong in route policies instead.
-const AUTH_PERMISSIONS = [
+const SHARED_PERMISSIONS = [
   // Our own endpoint, the only one that can return the user's role.
   'api::auth.auth.me',
   'plugin::users-permissions.auth.logout',
 ];
+
+// Reading the course catalogue. Every signed-in role gets this: a student needs
+// it to find a course to enroll in, and the other three need it to manage one.
+// The catalogue is not public — the Public role is granted nothing here.
+const COURSE_READ = ['api::course.course.find', 'api::course.course.findOne'];
+
+// Feature permissions, per role. A map rather than one shared list, because from
+// here the roles diverge: reading a course is for everyone, writing one is not.
+//
+// What this grid can and cannot do is worth being precise about. It decides
+// whether a role may attempt an action at all, and nothing more. It cannot
+// express the spec's "own only" rules — ticking course.update for Instructor
+// would let any instructor edit every course on the platform — so ownership is
+// checked in a route policy instead, added with the feature that needs it.
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  Admin: [...COURSE_READ],
+  'Content Manager': [...COURSE_READ],
+  Instructor: [...COURSE_READ],
+  Student: [...COURSE_READ],
+};
 
 // Permissions that must NOT be left on the Public role. Strapi grants these by
 // default when it first creates Public, so a fresh database arrives with them.
@@ -71,9 +89,16 @@ export default {
         strapi.log.info(`Created role: ${role.name}`);
       }
 
-      // Grant the auth permissions this role is missing. Also runs on every
-      // boot, so it must skip the ones that are already granted.
-      for (const action of AUTH_PERMISSIONS) {
+      // Grant the permissions this role is missing. Also runs on every boot, so
+      // it must skip the ones that are already granted.
+      //
+      // This only ever grants. Removing an action from the lists above will not
+      // revoke it from a database that already holds it — untick it in
+      // Settings -> Roles, or add it to the revocation loop below.
+      for (const action of [
+        ...SHARED_PERMISSIONS,
+        ...(ROLE_PERMISSIONS[role.name] ?? []),
+      ]) {
         const existingPermission = await strapi
           .query('plugin::users-permissions.permission')
           .findOne({
