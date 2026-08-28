@@ -30,6 +30,22 @@ export default {
       };
     }
   },
+
+  async me(ctx: Context) {
+    // Populated by Strapi's auth strategy from the Bearer token, so it is the
+    // authenticated user — never an id read from the request.
+    const authUser = ctx.state.user;
+
+    if (!authUser) {
+      return ctx.unauthorized();
+    }
+
+    const result = await strapi.service('api::auth.auth').me(authUser.id);
+
+    ctx.body = {
+      data: result,
+    };
+  },
 };
 
 
