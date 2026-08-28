@@ -25,79 +25,69 @@ const LMS_ROLES = [
   },
 ];
 
-// The permissions every LMS role needs just to complete a login round-trip.
-// Like the roles above, the Strapi admin grid stores these as database rows, so
-// a fresh database has none of them and the four LMS roles start with zero
-// permissions. Without seeding, a user logs in successfully and then gets 403
-// on /api/users/me, because they hold an LMS role rather than 'Authenticated'.
 const SHARED_PERMISSIONS = [
   // Our own endpoint, the only one that can return the user's role.
   'api::auth.auth.me',
   'plugin::users-permissions.auth.logout',
 ];
 
-// Reading the course catalogue. Every signed-in role gets this: a student needs
-// it to find a course to enroll in, and the other three need it to manage one.
-// The catalogue is not public — the Public role is granted nothing here.
 const COURSE_READ = ['api::course.course.find', 'api::course.course.findOne'];
 
-// Writing courses. Granting this to Instructor does NOT mean "any course" — the
-// is-course-owner policy on the update and delete routes narrows it to their
-// own, which is the part this grid cannot express.
 const COURSE_WRITE = [
   'api::course.course.create',
   'api::course.course.update',
   'api::course.course.delete',
 ];
 
-// The instructor picker on the course form. Only the roles that may assign a
-// course to somebody else have any use for a list of who that could be.
+
 const COURSE_ASSIGN = ['api::course.course.assignableInstructors'];
 
-// The authoring list — "the courses I may manage". Scoped on the server, so a
-// student holding this permission would still see nothing; they simply have no
-// courses. Granted to the three authoring roles only, since the page it feeds
-// is behind the same guard.
 const COURSE_MANAGE_LIST = ['api::course.course.managed'];
 
-// Feature permissions, per role. A map rather than one shared list, because from
-// here the roles diverge: reading a course is for everyone, writing one is not.
-//
-// What this grid can and cannot do is worth being precise about. It decides
-// whether a role may attempt an action at all, and nothing more. It cannot
-// express the spec's "own only" rules — ticking course.update for Instructor
-// would let any instructor edit every course on the platform — so ownership is
-// checked in a route policy instead, added with the feature that needs it.
+const LESSON_READ = ['api::lesson.lesson.find', 'api::lesson.lesson.findOne'];
+
+const LESSON_WRITE = [
+  'api::lesson.lesson.create',
+  'api::lesson.lesson.update',
+  'api::lesson.lesson.delete',
+];
+
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  Admin: [...COURSE_READ, ...COURSE_WRITE, ...COURSE_ASSIGN, ...COURSE_MANAGE_LIST],
+  Admin: [
+    ...COURSE_READ,
+    ...COURSE_WRITE,
+    ...COURSE_ASSIGN,
+    ...COURSE_MANAGE_LIST,
+    ...LESSON_READ,
+    ...LESSON_WRITE,
+  ],
   'Content Manager': [
     ...COURSE_READ,
     ...COURSE_WRITE,
     ...COURSE_ASSIGN,
     ...COURSE_MANAGE_LIST,
+    ...LESSON_READ,
+    ...LESSON_WRITE,
   ],
-  Instructor: [...COURSE_READ, ...COURSE_WRITE, ...COURSE_MANAGE_LIST],
-  // A student browses the catalogue and nothing more. The permission matrix
-  // gives them no course-write action at all.
-  Student: [...COURSE_READ],
+  Instructor: [
+    ...COURSE_READ,
+    ...COURSE_WRITE,
+    ...COURSE_MANAGE_LIST,
+    ...LESSON_READ,
+    ...LESSON_WRITE,
+  ],
+  // A student browses the catalogue and reads lessons, and nothing more. The
+  // permission matrix gives them no course- or lesson-write action at all.
+  Student: [...COURSE_READ, ...LESSON_READ],
 };
 
-// Permissions that must NOT be left on the Public role. Strapi grants these by
-// default when it first creates Public, so a fresh database arrives with them.
-//
-// `auth.register` is the plugin's own signup endpoint, POST /api/auth/local/register.
-// It assigns the role named in the advanced settings — 'Authenticated' — so a user
-// created through it lands outside the four LMS roles entirely, bypassing the
-// Student role our own register service hardcodes. Our POST /api/auth/register is
-// the only signup path we want, so this one is revoked on every boot.
 const PUBLIC_REVOKED_PERMISSIONS = ['plugin::users-permissions.auth.register'];
 
 export default {
   register() {},
 
   async bootstrap({ strapi }: { strapi: any }) {
-    // Create any role that does not exist yet. Runs on every boot, so it must
-    // do nothing when the roles are already there.
+   
     for (const role of LMS_ROLES) {
       let lmsRole = await strapi
         .query('plugin::users-permissions.role')
@@ -115,12 +105,6 @@ export default {
         strapi.log.info(`Created role: ${role.name}`);
       }
 
-      // Grant the permissions this role is missing. Also runs on every boot, so
-      // it must skip the ones that are already granted.
-      //
-      // This only ever grants. Removing an action from the lists above will not
-      // revoke it from a database that already holds it — untick it in
-      // Settings -> Roles, or add it to the revocation loop below.
       for (const action of [
         ...SHARED_PERMISSIONS,
         ...(ROLE_PERMISSIONS[role.name] ?? []),
@@ -151,8 +135,6 @@ export default {
       }
     }
 
-    // Take back the permissions Public must not keep. Like the grants above this
-    // runs on every boot, so it must do nothing once they are already gone.
     const publicRole = await strapi
       .query('plugin::users-permissions.role')
       .findOne({
