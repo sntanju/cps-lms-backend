@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "lesson_completions",
+  "info": {
+    "singularName": "lesson-completion",
+    "pluralName": "lesson-completions",
+    "displayName": "Lesson Completion",
+    "description": "One row per lesson a student has finished. The percentage is computed from these, never stored."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "student": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "lesson": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::lesson.lesson"
+    },
+    "course": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::course.course"
+    },
+    "completedAt": {
+      "type": "datetime"
+    },
+    "studentLessonKey": {
+      "type": "string",
+      "unique": true,
+      "private": true
+    }
+  }
+}

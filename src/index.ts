@@ -59,6 +59,13 @@ const LESSON_WRITE = [
   'api::lesson.lesson.delete',
 ];
 
+const PROGRESS_STUDENT = [
+  'api::lesson-completion.lesson-completion.complete',
+  'api::lesson-completion.lesson-completion.uncomplete',
+  'api::course.course.progress',
+];
+
+const PROGRESS_ROSTER = ['api::course.course.studentsProgress'];
 
 const ENROLLMENT_STUDENT = [
   'api::enrollment.enrollment.enroll',
@@ -72,6 +79,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_ASSIGN,
     ...COURSE_MANAGE_LIST,
     ...COURSE_LESSONS,
+    ...PROGRESS_ROSTER,
     ...LESSON_READ,
     ...LESSON_WRITE,
   ],
@@ -81,6 +89,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_ASSIGN,
     ...COURSE_MANAGE_LIST,
     ...COURSE_LESSONS,
+    ...PROGRESS_ROSTER,
     ...LESSON_READ,
     ...LESSON_WRITE,
   ],
@@ -89,6 +98,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_WRITE,
     ...COURSE_MANAGE_LIST,
     ...COURSE_LESSONS,
+    ...PROGRESS_ROSTER,
     ...LESSON_READ,
     ...LESSON_WRITE,
   ],
@@ -98,6 +108,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_LESSONS,
     ...LESSON_READ_ONE,
     ...ENROLLMENT_STUDENT,
+    ...PROGRESS_STUDENT,
   ],
 };
 
@@ -108,10 +119,38 @@ const ROLE_REVOKED_PERMISSIONS: Record<string, string[]> = {
 
 const PUBLIC_REVOKED_PERMISSIONS = ['plugin::users-permissions.auth.register'];
 
+const UNIQUE_INDEXES = [
+  {
+    name: 'enrollments_student_course_unique',
+    table: 'enrollments',
+    column: 'student_course_key',
+  },
+  {
+    name: 'lesson_completions_student_lesson_unique',
+    table: 'lesson_completions',
+    column: 'student_lesson_key',
+  },
+];
+
+async function ensureUniqueIndexes(strapi: any) {
+  for (const index of UNIQUE_INDEXES) {
+    try {
+      await strapi.db.connection.raw(
+        `CREATE UNIQUE INDEX IF NOT EXISTS ${index.name} ON ${index.table} (${index.column})`,
+      );
+    } catch (error: any) {
+      
+      strapi.log.error(`Could not create ${index.name}: ${error.message}`);
+    }
+  }
+}
+
 export default {
   register() {},
 
   async bootstrap({ strapi }: { strapi: any }) {
+    await ensureUniqueIndexes(strapi);
+
    
     for (const role of LMS_ROLES) {
       let lmsRole = await strapi

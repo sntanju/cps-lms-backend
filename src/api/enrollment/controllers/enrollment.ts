@@ -1,4 +1,7 @@
 import type { Context } from 'koa';
+import { errors } from '@strapi/utils';
+
+const { ApplicationError } = errors;
 
 export default {
   async enroll(ctx: Context) {
@@ -14,11 +17,19 @@ export default {
         data: result,
       };
     } catch (error) {
+      
+      const expected = error instanceof ApplicationError;
+
+      if (!expected) {
+        strapi.log.error(error);
+      }
+
       ctx.status = 400;
       ctx.body = {
         error: {
-          message:
-            error instanceof Error ? error.message : 'Could not enrol in this course',
+          message: expected
+            ? (error as Error).message
+            : 'Could not enrol in this course',
         },
       };
     }

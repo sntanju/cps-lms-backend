@@ -1,3 +1,7 @@
+import { errors } from '@strapi/utils';
+
+const { ApplicationError } = errors;
+
 // "Enroll in a course" is Student-only in the permission matrix 
 const ENROLLING_ROLE = 'Student';
 
@@ -19,14 +23,14 @@ function publicCourse(course: any) {
 }
 
 export default ({ strapi }: { strapi: any }) => ({
-  // `user` is ctx.state.user, from the verified token. The student is taken from it and never from the body, so nobody can enrol somebody else.
+ 
   async enroll(user: any, courseDocumentId: string) {
     if (user.role?.name !== ENROLLING_ROLE) {
-      throw new Error('Only students can enrol in a course');
+      throw new ApplicationError('Only students can enrol in a course');
     }
 
     if (!courseDocumentId) {
-      throw new Error('A course is required');
+      throw new ApplicationError('A course is required');
     }
 
     const course = await strapi.documents('api::course.course').findOne({
@@ -35,7 +39,7 @@ export default ({ strapi }: { strapi: any }) => ({
     });
 
     if (!course) {
-      throw new Error('That course does not exist');
+      throw new ApplicationError('That course does not exist');
     }
 
     const existing = await strapi.query('api::enrollment.enrollment').findOne({
@@ -46,7 +50,7 @@ export default ({ strapi }: { strapi: any }) => ({
     });
 
     if (existing) {
-      throw new Error('You are already enrolled in this course');
+      throw new ApplicationError('You are already enrolled in this course');
     }
 
     let enrollment: any;
@@ -62,9 +66,16 @@ export default ({ strapi }: { strapi: any }) => ({
         },
       });
     } catch (error: any) {
-      // Only the unique constraint firing. Anything else is rethrown.
-      if (error?.name === 'ValidationError') {
-        throw new Error('You are already enrolled in this course');
+     
+      const raced = await strapi.query('api::enrollment.enrollment').findOne({
+        where: {
+          student: user.id,
+          course: course.id,
+        },
+      });
+
+      if (raced) {
+        throw new ApplicationError('You are already enrolled in this course');
       }
 
       throw error;
@@ -86,14 +97,31 @@ export default ({ strapi }: { strapi: any }) => ({
       sort: { enrolledAt: 'desc' },
     });
 
-    return enrollments
+    const rows = [];
+
+    for (const enrollment of enrollments) {
       // A course deleted after enrolment leaves the row with no course.
-      .filter((enrollment: any) => enrollment.course)
-      .map((enrollment: any) => ({
+      if (!enrollment.course) {
+        continue;
+      }
+
+      const progress = await strapi
+        .service('api::course.course')
+        .courseProgress(studentId, enrollment.course);
+
+      rows.push({
         id: enrollment.id,
         documentId: enrollment.documentId,
         enrolledAt: enrollment.enrolledAt,
         course: publicCourse(enrollment.course),
-      }));
+        progress: {
+          completed: progress.completed,
+          total: progress.total,
+          percentage: progress.percentage,
+        },
+      });
+    }
+
+    return rows;
   },
 });

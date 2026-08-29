@@ -258,6 +258,92 @@ export default factories.createCoreController('api::course.course', ({ strapi })
   },
 
   
+  async progress(ctx) {
+    const course = await strapi.documents('api::course.course').findOne({
+      documentId: ctx.params.documentId,
+      populate: ['instructor'],
+    });
+
+    if (!course) {
+      return ctx.notFound();
+    }
+
+    const allowed = await strapi
+      .service('api::course.course')
+      .canAccessContent(ctx.state.user, course);
+
+    if (!allowed) {
+      return ctx.forbidden('Enrol in this course to track your progress');
+    }
+
+    ctx.body = {
+      data: await strapi
+        .service('api::course.course')
+        .courseProgress(ctx.state.user.id, course),
+    };
+  },
+
+  async studentsProgress(ctx) {
+    const course = await strapi.documents('api::course.course').findOne({
+      documentId: ctx.params.documentId,
+      populate: ['instructor'],
+    });
+
+    if (!course) {
+      return ctx.notFound();
+    }
+
+    const courseService = strapi.service('api::course.course');
+
+    if (!courseService.canManageCourse(ctx.state.user, course)) {
+      return ctx.forbidden('You do not manage this course');
+    }
+
+    const enrollments: any[] = await strapi
+      .documents('api::enrollment.enrollment')
+      .findMany({
+        filters: { course: { id: course.id } },
+        populate: ['student'],
+        sort: { enrolledAt: 'asc' },
+      });
+
+    const rows = [];
+
+    for (const enrollment of enrollments) {
+      if (!enrollment.student) {
+        continue;
+      }
+
+      const progress = await courseService.courseProgress(
+        enrollment.student.id,
+        course,
+      );
+
+      rows.push({
+        
+        student: {
+          id: enrollment.student.id,
+          fullName: enrollment.student.fullName ?? enrollment.student.username,
+          email: enrollment.student.email,
+        },
+        enrolledAt: enrollment.enrolledAt,
+        completed: progress.completed,
+        total: progress.total,
+        percentage: progress.percentage,
+      });
+    }
+
+    ctx.body = {
+      data: rows,
+      meta: {
+        course: {
+          documentId: course.documentId,
+          title: course.title,
+        },
+      },
+    };
+  },
+
   async assignableInstructors(ctx) {
     const users = await strapi.query('plugin::users-permissions.user').findMany({
       where: { role: { name: { $in: ASSIGNABLE_ROLES } } },
