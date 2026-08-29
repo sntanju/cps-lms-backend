@@ -52,6 +52,12 @@ const LESSON_WRITE = [
   'api::lesson.lesson.delete',
 ];
 
+
+const ENROLLMENT_STUDENT = [
+  'api::enrollment.enrollment.enroll',
+  'api::enrollment.enrollment.mine',
+];
+
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   Admin: [
     ...COURSE_READ,
@@ -78,7 +84,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   // A student browses the catalogue and reads lessons, and nothing more. The
   // permission matrix gives them no course- or lesson-write action at all.
-  Student: [...COURSE_READ, ...LESSON_READ],
+  Student: [...COURSE_READ, ...LESSON_READ, ...ENROLLMENT_STUDENT],
 };
 
 const PUBLIC_REVOKED_PERMISSIONS = ['plugin::users-permissions.auth.register'];
@@ -214,14 +220,12 @@ export default {
       .plugin('users-permissions')
       .service('user')
       .add({
-        // Same split as the register service: the email is the unique username,
-        // the person's name lives in fullName.
+        
         username: adminEmail.toLowerCase(),
         fullName: adminName,
         email: adminEmail.toLowerCase(),
         password: adminPassword,
-        // Required for POST /api/auth/local to find this user; see the note in
-        // src/api/auth/services/auth.ts.
+        
         provider: 'local',
         confirmed: true,
         blocked: false,

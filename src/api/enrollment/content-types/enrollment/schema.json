@@ -1,0 +1,34 @@
+{
+  "kind": "collectionType",
+  "collectionName": "enrollments",
+  "info": {
+    "singularName": "enrollment",
+    "pluralName": "enrollments",
+    "displayName": "Enrollment",
+    "description": "Joins one student to one course. Progress and quiz results hang off this in later phases."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "student": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "course": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::course.course"
+    },
+    "enrolledAt": {
+      "type": "datetime"
+    },
+    "studentCourseKey": {
+      "type": "string",
+      "unique": true,
+      "private": true
+    }
+  }
+}
