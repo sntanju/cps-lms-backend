@@ -1,7 +1,7 @@
 // // import type { Core } from '@strapi/strapi';
 
-// The four LMS roles. These are database rows, not code, so a fresh database
-// (a new Railway deployment) starts with none of them. Seed them on boot.
+// The four LMS roles. These are database rows, not code, so a fresh database (a new Railway deployment) starts with none of them. Seed them on boot.
+
 const LMS_ROLES = [
   {
     name: 'Admin',
@@ -44,7 +44,14 @@ const COURSE_ASSIGN = ['api::course.course.assignableInstructors'];
 
 const COURSE_MANAGE_LIST = ['api::course.course.managed'];
 
-const LESSON_READ = ['api::lesson.lesson.find', 'api::lesson.lesson.findOne'];
+const LESSON_LIST = ['api::lesson.lesson.find'];
+
+const LESSON_READ_ONE = ['api::lesson.lesson.findOne'];
+
+const LESSON_READ = [...LESSON_LIST, ...LESSON_READ_ONE];
+
+// The lessons of one course, gated on enrolment. Every role needs it.
+const COURSE_LESSONS = ['api::course.course.lessons'];
 
 const LESSON_WRITE = [
   'api::lesson.lesson.create',
@@ -64,6 +71,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_WRITE,
     ...COURSE_ASSIGN,
     ...COURSE_MANAGE_LIST,
+    ...COURSE_LESSONS,
     ...LESSON_READ,
     ...LESSON_WRITE,
   ],
@@ -72,6 +80,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_WRITE,
     ...COURSE_ASSIGN,
     ...COURSE_MANAGE_LIST,
+    ...COURSE_LESSONS,
     ...LESSON_READ,
     ...LESSON_WRITE,
   ],
@@ -79,12 +88,22 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...COURSE_READ,
     ...COURSE_WRITE,
     ...COURSE_MANAGE_LIST,
+    ...COURSE_LESSONS,
     ...LESSON_READ,
     ...LESSON_WRITE,
   ],
-  // A student browses the catalogue and reads lessons, and nothing more. The
-  // permission matrix gives them no course- or lesson-write action at all.
-  Student: [...COURSE_READ, ...LESSON_READ, ...ENROLLMENT_STUDENT],
+  
+  Student: [
+    ...COURSE_READ,
+    ...COURSE_LESSONS,
+    ...LESSON_READ_ONE,
+    ...ENROLLMENT_STUDENT,
+  ],
+};
+
+const ROLE_REVOKED_PERMISSIONS: Record<string, string[]> = {
+  
+  Student: ['api::lesson.lesson.find'],
 };
 
 const PUBLIC_REVOKED_PERMISSIONS = ['plugin::users-permissions.auth.register'];
@@ -138,6 +157,31 @@ export default {
         });
 
         strapi.log.info(`Granted ${action} to role: ${role.name}`);
+      }
+
+      for (const action of ROLE_REVOKED_PERMISSIONS[role.name] ?? []) {
+        const permission = await strapi
+          .query('plugin::users-permissions.permission')
+          .findOne({
+            where: {
+              action,
+              role: {
+                id: lmsRole.id,
+              },
+            },
+          });
+
+        if (!permission) {
+          continue;
+        }
+
+        await strapi.query('plugin::users-permissions.permission').delete({
+          where: {
+            id: permission.id,
+          },
+        });
+
+        strapi.log.info(`Revoked ${action} from role: ${role.name}`);
       }
     }
 
