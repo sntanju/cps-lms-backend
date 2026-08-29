@@ -79,8 +79,14 @@ const QUIZ_WRITE = [
   'api::question.question.delete',
 ];
 
-// The only quiz route a student may call.
-const QUIZ_TAKE = ['api::quiz.quiz.take'];
+const QUIZ_TAKE = [
+  'api::quiz.quiz.take',
+  'api::quiz-result.quiz-result.submit',
+  'api::quiz-result.quiz-result.forQuiz',
+  'api::quiz-result.quiz-result.mine',
+];
+
+const QUIZ_RESULTS_ROSTER = ['api::quiz-result.quiz-result.forCourse'];
 
 const ENROLLMENT_STUDENT = [
   'api::enrollment.enrollment.enroll',
@@ -98,6 +104,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_READ,
     ...LESSON_WRITE,
     ...QUIZ_WRITE,
+    ...QUIZ_RESULTS_ROSTER,
   ],
   'Content Manager': [
     ...COURSE_READ,
@@ -109,6 +116,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_READ,
     ...LESSON_WRITE,
     ...QUIZ_WRITE,
+    ...QUIZ_RESULTS_ROSTER,
   ],
   Instructor: [
     ...COURSE_READ,
@@ -119,6 +127,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_READ,
     ...LESSON_WRITE,
     ...QUIZ_WRITE,
+    ...QUIZ_RESULTS_ROSTER,
   ],
   
   Student: [

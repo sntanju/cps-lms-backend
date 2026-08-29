@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "quiz_results",
+  "info": {
+    "singularName": "quiz-result",
+    "pluralName": "quiz-results",
+    "displayName": "Quiz Result",
+    "description": "One graded attempt at a quiz. Written only by the grading service, never by a client."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "student": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "quiz": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::quiz.quiz"
+    },
+    "course": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::course.course"
+    },
+    "score": {
+      "type": "integer",
+      "required": true
+    },
+    "totalQuestions": {
+      "type": "integer",
+      "required": true
+    },
+    "answers": {
+      "type": "json"
+    },
+    "submittedAt": {
+      "type": "datetime"
+    }
+  }
+}
