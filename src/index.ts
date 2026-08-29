@@ -67,6 +67,21 @@ const PROGRESS_STUDENT = [
 
 const PROGRESS_ROSTER = ['api::course.course.studentsProgress'];
 
+const QUIZ_WRITE = [
+  
+  'api::quiz.quiz.find',
+  'api::quiz.quiz.findOne',
+  'api::quiz.quiz.create',
+  'api::quiz.quiz.update',
+  'api::quiz.quiz.delete',
+  'api::question.question.create',
+  'api::question.question.update',
+  'api::question.question.delete',
+];
+
+// The only quiz route a student may call.
+const QUIZ_TAKE = ['api::quiz.quiz.take'];
+
 const ENROLLMENT_STUDENT = [
   'api::enrollment.enrollment.enroll',
   'api::enrollment.enrollment.mine',
@@ -82,6 +97,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...PROGRESS_ROSTER,
     ...LESSON_READ,
     ...LESSON_WRITE,
+    ...QUIZ_WRITE,
   ],
   'Content Manager': [
     ...COURSE_READ,
@@ -92,6 +108,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...PROGRESS_ROSTER,
     ...LESSON_READ,
     ...LESSON_WRITE,
+    ...QUIZ_WRITE,
   ],
   Instructor: [
     ...COURSE_READ,
@@ -101,6 +118,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...PROGRESS_ROSTER,
     ...LESSON_READ,
     ...LESSON_WRITE,
+    ...QUIZ_WRITE,
   ],
   
   Student: [
@@ -109,6 +127,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_READ_ONE,
     ...ENROLLMENT_STUDENT,
     ...PROGRESS_STUDENT,
+    ...QUIZ_TAKE,
   ],
 };
 

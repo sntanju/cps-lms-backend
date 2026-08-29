@@ -1,5 +1,8 @@
 'use strict';
 
+// NOTE: Kept for documentation only; 
+// superseded by ensureUniqueIndexes() in src/index.ts because Strapi runs migrations before content-type tables exist.
+
 
 const INDEX_NAME = 'enrollments_student_course_unique';
 

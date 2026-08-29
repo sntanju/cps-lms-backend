@@ -46,6 +46,29 @@ async function attachInstructor(strapi: any, entry: any) {
   return entry;
 }
 
+async function attachQuiz(strapi: any, entry: any) {
+  if (!entry) {
+    return entry;
+  }
+
+  const course = await strapi.documents('api::course.course').findOne({
+    documentId: entry.documentId,
+    populate: { quizzes: { populate: ['questions'] } },
+  });
+
+  const quiz = (course as any)?.quizzes?.[0];
+
+  entry.quiz = quiz
+    ? {
+        documentId: quiz.documentId,
+        title: quiz.title,
+        questionCount: quiz.questions?.length ?? 0,
+      }
+    : null;
+
+  return entry;
+}
+
 async function attachLessons(strapi: any, entry: any) {
   if (!entry) {
     return entry;
@@ -153,6 +176,7 @@ export default factories.createCoreController('api::course.course', ({ strapi })
 
     await attachInstructor(strapi, entry);
     await attachLessons(strapi, entry);
+    await attachQuiz(strapi, entry);
 
     return response;
   },
