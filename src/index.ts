@@ -99,6 +99,13 @@ const BLOG_WRITE = [
   'api::blog-post.blog-post.delete',
 ];
 
+const ADMIN_PANEL = [
+  'api::admin-panel.admin-panel.users',
+  'api::admin-panel.admin-panel.roles',
+  'api::admin-panel.admin-panel.stats',
+  'api::admin-panel.admin-panel.setRole',
+];
+
 const ENROLLMENT_STUDENT = [
   'api::enrollment.enrollment.enroll',
   'api::enrollment.enrollment.mine',
@@ -118,6 +125,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...QUIZ_RESULTS_ROSTER,
     ...BLOG_READ,
     ...BLOG_WRITE,
+    ...ADMIN_PANEL,
   ],
   'Content Manager': [
     ...COURSE_READ,
