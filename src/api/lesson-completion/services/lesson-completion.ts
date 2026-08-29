@@ -2,8 +2,6 @@ import { errors } from '@strapi/utils';
 
 const { ApplicationError, ForbiddenError } = errors;
 
-// Tracking your own progress is a Student action; the other three roles have no
-// progress of their own.
 const COMPLETING_ROLE = 'Student';
 
 // The lesson, with enough of its course to answer "may this user read it?".
@@ -33,8 +31,6 @@ export default ({ strapi }: { strapi: any }) => ({
 
     const lesson = await findLesson(strapi, lessonDocumentId);
 
-    // The Phase 5 check, reused: you cannot complete a lesson in a course you
-    // never joined.
     const allowed = await strapi
       .service('api::course.course')
       .canAccessContent(user, lesson.course);
@@ -43,8 +39,7 @@ export default ({ strapi }: { strapi: any }) => ({
       throw new ForbiddenError('Enrol in this course to track its lessons');
     }
 
-    // Idempotent: without this, five clicks on one lesson counts five times and
-    // the percentage runs past 100.
+    
     const existing = await strapi
       .query('api::lesson-completion.lesson-completion')
       .findOne({
@@ -63,19 +58,14 @@ export default ({ strapi }: { strapi: any }) => ({
         data: {
           student: user.id,
           lesson: lesson.id,
-          // Denormalised from the lesson, never taken from the client, so it
-          // cannot drift. It turns "how many lessons of this course has this
-          // student finished" into one flat count.
+          
           course: lesson.course.id,
           completedAt: new Date(),
           studentLessonKey: `${user.id}:${lesson.id}`,
         },
       });
     } catch (error: any) {
-      // Two clicks raced past the check above and the unique index rejected the
-      // second insert. Rather than trying to recognise the database's error, ask
-      // the question that actually matters: is the row there now? If it is, the
-      // caller got what they wanted.
+      
       const raced = await strapi
         .query('api::lesson-completion.lesson-completion')
         .findOne({
@@ -102,8 +92,6 @@ export default ({ strapi }: { strapi: any }) => ({
 
     const lesson = await findLesson(strapi, lessonDocumentId);
 
-    // Scoped to this student's own row: the id comes from the token, so there is
-    // nothing here a client could edit to clear somebody else's progress.
     const existing = await strapi
       .query('api::lesson-completion.lesson-completion')
       .findOne({

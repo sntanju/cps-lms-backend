@@ -88,6 +88,17 @@ const QUIZ_TAKE = [
 
 const QUIZ_RESULTS_ROSTER = ['api::quiz-result.quiz-result.forCourse'];
 
+const BLOG_READ = [
+  'api::blog-post.blog-post.find',
+  'api::blog-post.blog-post.findOne',
+];
+
+const BLOG_WRITE = [
+  'api::blog-post.blog-post.create',
+  'api::blog-post.blog-post.update',
+  'api::blog-post.blog-post.delete',
+];
+
 const ENROLLMENT_STUDENT = [
   'api::enrollment.enrollment.enroll',
   'api::enrollment.enrollment.mine',
@@ -105,6 +116,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_WRITE,
     ...QUIZ_WRITE,
     ...QUIZ_RESULTS_ROSTER,
+    ...BLOG_READ,
+    ...BLOG_WRITE,
   ],
   'Content Manager': [
     ...COURSE_READ,
@@ -117,6 +130,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_WRITE,
     ...QUIZ_WRITE,
     ...QUIZ_RESULTS_ROSTER,
+    ...BLOG_READ,
+    ...BLOG_WRITE,
   ],
   Instructor: [
     ...COURSE_READ,
@@ -128,6 +143,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...LESSON_WRITE,
     ...QUIZ_WRITE,
     ...QUIZ_RESULTS_ROSTER,
+    ...BLOG_READ,
   ],
   
   Student: [
@@ -137,6 +153,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     ...ENROLLMENT_STUDENT,
     ...PROGRESS_STUDENT,
     ...QUIZ_TAKE,
+    ...BLOG_READ,
   ],
 };
 
@@ -144,6 +161,8 @@ const ROLE_REVOKED_PERMISSIONS: Record<string, string[]> = {
   
   Student: ['api::lesson.lesson.find'],
 };
+
+const PUBLIC_PERMISSIONS = [...BLOG_READ];
 
 const PUBLIC_REVOKED_PERMISSIONS = ['plugin::users-permissions.auth.register'];
 
@@ -173,6 +192,57 @@ async function ensureUniqueIndexes(strapi: any) {
   }
 }
 
+async function grantPermissions(
+  strapi: any,
+  role: any,
+  roleName: string,
+  actions: string[],
+) {
+  for (const action of actions) {
+    const existing = await strapi
+      .query('plugin::users-permissions.permission')
+      .findOne({
+        where: { action, role: { id: role.id } },
+      });
+
+    // Idempotent: bootstrap runs on every boot, including every autoReload.
+    if (existing) {
+      continue;
+    }
+
+    await strapi.query('plugin::users-permissions.permission').create({
+      data: { action, role: role.id },
+    });
+
+    strapi.log.info(`Granted ${action} to role: ${roleName}`);
+  }
+}
+
+async function revokePermissions(
+  strapi: any,
+  role: any,
+  roleName: string,
+  actions: string[],
+) {
+  for (const action of actions) {
+    const permission = await strapi
+      .query('plugin::users-permissions.permission')
+      .findOne({
+        where: { action, role: { id: role.id } },
+      });
+
+    if (!permission) {
+      continue;
+    }
+
+    await strapi.query('plugin::users-permissions.permission').delete({
+      where: { id: permission.id },
+    });
+
+    strapi.log.info(`Revoked ${action} from role: ${roleName}`);
+  }
+}
+
 export default {
   register() {},
 
@@ -197,59 +267,17 @@ export default {
         strapi.log.info(`Created role: ${role.name}`);
       }
 
-      for (const action of [
+      await grantPermissions(strapi, lmsRole, role.name, [
         ...SHARED_PERMISSIONS,
         ...(ROLE_PERMISSIONS[role.name] ?? []),
-      ]) {
-        const existingPermission = await strapi
-          .query('plugin::users-permissions.permission')
-          .findOne({
-            where: {
-              action,
-              role: {
-                id: lmsRole.id,
-              },
-            },
-          });
+      ]);
 
-        if (existingPermission) {
-          continue;
-        }
-
-        await strapi.query('plugin::users-permissions.permission').create({
-          data: {
-            action,
-            role: lmsRole.id,
-          },
-        });
-
-        strapi.log.info(`Granted ${action} to role: ${role.name}`);
-      }
-
-      for (const action of ROLE_REVOKED_PERMISSIONS[role.name] ?? []) {
-        const permission = await strapi
-          .query('plugin::users-permissions.permission')
-          .findOne({
-            where: {
-              action,
-              role: {
-                id: lmsRole.id,
-              },
-            },
-          });
-
-        if (!permission) {
-          continue;
-        }
-
-        await strapi.query('plugin::users-permissions.permission').delete({
-          where: {
-            id: permission.id,
-          },
-        });
-
-        strapi.log.info(`Revoked ${action} from role: ${role.name}`);
-      }
+      await revokePermissions(
+        strapi,
+        lmsRole,
+        role.name,
+        ROLE_REVOKED_PERMISSIONS[role.name] ?? [],
+      );
     }
 
     const publicRole = await strapi
@@ -261,30 +289,14 @@ export default {
       });
 
     if (publicRole) {
-      for (const action of PUBLIC_REVOKED_PERMISSIONS) {
-        const permission = await strapi
-          .query('plugin::users-permissions.permission')
-          .findOne({
-            where: {
-              action,
-              role: {
-                id: publicRole.id,
-              },
-            },
-          });
+      await grantPermissions(strapi, publicRole, 'Public', PUBLIC_PERMISSIONS);
 
-        if (!permission) {
-          continue;
-        }
-
-        await strapi.query('plugin::users-permissions.permission').delete({
-          where: {
-            id: permission.id,
-          },
-        });
-
-        strapi.log.info(`Revoked ${action} from role: Public`);
-      }
+      await revokePermissions(
+        strapi,
+        publicRole,
+        'Public',
+        PUBLIC_REVOKED_PERMISSIONS,
+      );
     }
 
     const adminEmail = process.env.INITIAL_ADMIN_EMAIL;
